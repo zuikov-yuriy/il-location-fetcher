@@ -65,14 +65,6 @@ class FetchLocationsCommand extends Command
         $this->citiesEntity = Config::get('il_location_fetch.city_entity', '');
         $this->streetsEntity = Config::get('il_location_fetch.street_entity', '');
 
-        if (!class_exists($this->citiesEntity) || !is_subclass_of($this->citiesEntity, Model::class)) {
-            throw new InvalidArgumentException("Class {$this->citiesEntity} does not exists or is not instance of Eloquent Model!");
-        }
-
-        if (!class_exists($this->streetsEntity) || !is_subclass_of($this->streetsEntity, Model::class)) {
-            throw new InvalidArgumentException("Class {$this->streetsEntity} does not exists or is not instance of Eloquent Model!");
-        }
-
         $this->ckanFetcher = $ckanFetcher;
         $this->recordTransformer = $recordTransformer;
 
@@ -86,6 +78,14 @@ class FetchLocationsCommand extends Command
      */
     public function handle()
     {
+        if (!class_exists($this->citiesEntity) || !is_subclass_of($this->citiesEntity, Model::class)) {
+            throw new InvalidArgumentException("Class {$this->citiesEntity} does not exists or is not instance of Eloquent Model!");
+        }
+
+        if (!class_exists($this->streetsEntity) || !is_subclass_of($this->streetsEntity, Model::class)) {
+            throw new InvalidArgumentException("Class {$this->streetsEntity} does not exists or is not instance of Eloquent Model!");
+        }
+
         DB::beginTransaction();
 
         $this->comment("Started: ".Carbon::now()->format('Y-m-d H:i:s'));
