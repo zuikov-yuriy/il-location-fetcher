@@ -204,12 +204,10 @@ class FetchLocationsCommand extends Command
     {
         $record = $this->recordTransformer->transform($record);
 
-        $street = new $this->streetsEntity();
-
-//        ::query()
-//            ->where('code', $record['street_code'])
-//            ->where('city_code', $record['city_code'])
-//            ->firstOrNew();
+        $street = $this->streetsEntity::query()
+            ->where('code', $record['street_code'])
+            ->where('city_code', $record['city_code'])
+            ->firstOrNew();
 
         $city = $this->fetchCityFromLocalDB($record['city_code']);
 
