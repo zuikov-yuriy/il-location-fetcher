@@ -1,0 +1,33 @@
+{
+    "name": "thep6/rabbit-events-bridge",
+    "description": "Use rabbit-events events from queue and bridge them to separate controllers",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "thep6",
+            "email": "andriy.pentsak@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "illuminate/support": "^7.0|^8.0",
+        "illuminate/console": "^7.0|^8.0",
+        "illuminate/config": "^7.0|^8.0",
+        "illuminate/database": "^7.0|^8.0",
+        "nesbot/carbon": "^2.42.0",
+        "ext-curl": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "TheP6\\ILLocationFetcher\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "TheP6\\RabbitEventsBridge\\Providers\\RabbitEventsBridgeProvider"
+            ]
+        }
+    }
+}
