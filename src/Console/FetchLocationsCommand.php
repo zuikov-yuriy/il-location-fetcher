@@ -153,6 +153,12 @@ class FetchLocationsCommand extends Command
             ->where('code', $record['city_code'])
             ->firstOrNew();
 
+        if ($city->name !== null && $record['name'] !== $city->name) {
+            $this->warn("Possible city double: ");
+            $this->warn("Record {$record['name']}, {$record['city_code']}");
+            $this->warn("Record {$city->name}, {$city->code}");
+        }
+
         $city->name = $record['name'];
         $city->code = $record['city_code'];
         $city->save();
@@ -204,6 +210,12 @@ class FetchLocationsCommand extends Command
             ->firstOrNew();
 
         $city = $this->fetchCityFromLocalDB($record['city_code']);
+
+        if ($street->name !== null && $street->name !== $record['name']) {
+            $this->warn("Possible street double:");
+            $this->warn("Record {$record['name']}, City: {$record['city_code']}, Street: {$record['street_code']}");
+            $this->warn("DB Model {$street->name}, City: {$street->city_code}, Street: {$street->code}");
+        }
 
         $street->name = $record['name'];
         $street->code = $record['street_code'];
