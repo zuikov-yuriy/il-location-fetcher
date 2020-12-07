@@ -207,6 +207,7 @@ class FetchLocationsCommand extends Command
 
         $street->name = $record['name'];
         $street->code = $record['street_code'];
+        $street->city_code = $record['city_code'];
         $street->city_id = $city->id;
         $street->save();
 
