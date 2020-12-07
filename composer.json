@@ -1,6 +1,6 @@
 {
-    "name": "thep6/rabbit-events-bridge",
-    "description": "Use rabbit-events events from queue and bridge them to separate controllers",
+    "name": "thep6/il-location-fetcher",
+    "description": "Fetch IL locations (settlements and streets) to local database from open-data db",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -26,7 +26,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "TheP6\\RabbitEventsBridge\\Providers\\RabbitEventsBridgeProvider"
+                "TheP6\\ILLocationFetcher\\Providers\\ILLocationFetcherProvider"
             ]
         }
     }
