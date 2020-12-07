@@ -20,7 +20,7 @@ class FetchLocationsCommand extends Command
 
     protected array $transformCityRecordMap;
     protected array $transformStreetRecordMap;
-    protected array $streetCityCodeField;
+    protected string $streetCityCodeField;
 
     protected int $cityChunkSize;
     protected int $streetChunkSize;
