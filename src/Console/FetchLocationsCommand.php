@@ -88,26 +88,27 @@ class FetchLocationsCommand extends Command
     {
         DB::beginTransaction();
 
-        echo "Started: ".Carbon::now()->format('Y-m-d H:i:s')."\n";
+        $this->comment("Started: ".Carbon::now()->format('Y-m-d H:i:s'));
 
         try {
 
-            echo "Importing cities... \n";
+            $this->comment("Importing cities...");
             $this->importCities();
 
-            echo "Importing streets... \n";
+            $this->comment("Importing streets...");
             $this->importStreets();
 
         } catch (Exception $e) {
             DB::rollBack();
-            echo "\n" . $e->getMessage() . "\n";
+            $this->comment("Error occurred. All changes will be reverted!");
+            $this->error($e->getMessage());
             return 1;
         }
 
         DB::commit();
 
-        echo "Ended: ".Carbon::now()->format('Y-m-d H:i:s')."\n";
-        echo "\n Import successful \n";
+        $this->comment("Ended: ".Carbon::now()->format('Y-m-d H:i:s'));
+        $this->comment("Import successful");
 
         return 0;
     }
