@@ -1,5 +1,5 @@
 {
-    "name": "thep6/il-location-fetcher",
+    "name": "israel-it/il-location-fetcher",
     "description": "Fetch IL locations (settlements and streets) to local database from open-data db",
     "type": "library",
     "license": "MIT",
