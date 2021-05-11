@@ -42,6 +42,7 @@ _Chunking._ Library takes data from databases IP in chunks. If you have problems
     'city_fetch_chunk_size'   => 1300,
     'street_fetch_chunk_size' => 5000,
 `
+
 _Settlements identity._ Cities and streets in those databases have each their own id, BUT real indetification of city and street is made by fields
 "city_code" and "street_code". City_code is unique for each city. Streets can have the same street_code, but they can not have the same street_code and city_code at the same time. I.e. to streets with the same code can't be located in the same city.
 
