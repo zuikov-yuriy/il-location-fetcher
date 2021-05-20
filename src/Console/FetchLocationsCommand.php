@@ -31,7 +31,7 @@ class FetchLocationsCommand extends Command
     private ?CKANFetcher $ckanFetcher = null;
     private ?RecordTransformer $recordTransformer = null;
 
-    private $cachedCity = null;
+    private $cachedCities = [];
 
     /**
      * The name and signature of the console command.
@@ -79,35 +79,23 @@ class FetchLocationsCommand extends Command
     public function handle()
     {
         if (!class_exists($this->citiesEntity) || !is_subclass_of($this->citiesEntity, Model::class)) {
-            throw new InvalidArgumentException("Class {$this->citiesEntity} does not exists or is not instance of Eloquent Model!");
+            throw new InvalidArgumentException(
+                "Class {$this->citiesEntity} does not exists or is not instance of Eloquent Model!"
+            );
         }
 
         if (!class_exists($this->streetsEntity) || !is_subclass_of($this->streetsEntity, Model::class)) {
-            throw new InvalidArgumentException("Class {$this->streetsEntity} does not exists or is not instance of Eloquent Model!");
+            throw new InvalidArgumentException(
+                "Class {$this->streetsEntity} does not exists or is not instance of Eloquent Model!"
+            );
         }
 
-        DB::beginTransaction();
+        $this->comment("Started: " . Carbon::now()->format('Y-m-d H:i:s'));
 
-        $this->comment("Started: ".Carbon::now()->format('Y-m-d H:i:s'));
+        $this->importCities();
+        $this->importStreets();
 
-        try {
-
-            $this->comment("Importing cities...");
-            $this->importCities();
-
-            $this->comment("Importing streets...");
-            $this->importStreets();
-
-        } catch (Exception $e) {
-            DB::rollBack();
-            $this->comment("Error occurred. All changes will be reverted!");
-            $this->error($e->getMessage());
-            return 1;
-        }
-
-        DB::commit();
-
-        $this->comment("Ended: ".Carbon::now()->format('Y-m-d H:i:s'));
+        $this->comment("Ended: " . Carbon::now()->format('Y-m-d H:i:s'));
         $this->comment("Import successful");
 
         return 0;
@@ -118,40 +106,57 @@ class FetchLocationsCommand extends Command
         $chunkNumber = 0;
         $totalProceeded = 0;
 
-        $this->ckanFetcher
-            ->setCKANServer($this->ckanLocationsServer)
-            ->setDataStoreResourceId($this->cityResourceId);
+        $this->comment('Importing cities...');
 
-        $this->recordTransformer
-            ->setTransformMap($this->transformCityRecordMap);
+        DB::beginTransaction();
 
-        do {
-            $citiesRecords = $this->ckanFetcher->fetchRecords([
-                'limit'     => $this->cityChunkSize,
-                'offset'    => $chunkNumber * $this->cityChunkSize,
-            ]);
+        try {
+            $this->ckanFetcher
+                ->setCKANServer($this->ckanLocationsServer)
+                ->setDataStoreResourceId($this->cityResourceId);
 
-            $retrievedCitiesCount = count($citiesRecords);
+            $this->recordTransformer
+                ->setTransformMap($this->transformCityRecordMap);
 
-            foreach ($citiesRecords as $record) {
-                $this->importCity($record);
-            }
+            do {
+                $citiesRecords = $this->ckanFetcher->fetchRecords(
+                    [
+                        'limit' => $this->cityChunkSize,
+                        'offset' => $chunkNumber * $this->cityChunkSize,
+                    ]
+                );
 
-            $chunkNumber++;
-            $totalProceeded += $retrievedCitiesCount;
+                $retrievedCitiesCount = count($citiesRecords);
 
-            echo ($totalProceeded)." cities processed\n";
+                foreach ($citiesRecords as $record) {
+                    $this->importCity($record);
+                }
 
-        } while ($retrievedCitiesCount >= $this->cityChunkSize);
+                $chunkNumber++;
+                $totalProceeded += $retrievedCitiesCount;
+
+                echo ($totalProceeded) . " cities processed\n";
+            } while ($retrievedCitiesCount >= $this->cityChunkSize);
+        } catch (Exception $exception) {
+            DB::rollBack();
+            $this->comment("Error occurred. All processed cities will be reverted!");
+            $this->error($exception->getMessage());
+        }
+
+        DB::commit();
     }
 
     private function importCity(array $record)
     {
         $record = $this->recordTransformer->transform($record);
 
-        $city = $this->citiesEntity::query()
-            ->where('code', $record['city_code'])
-            ->firstOrNew();
+        $city = $this->citiesEntity::query()->updateOrCreate(
+            ['code' => $record['city_code']],
+            [
+                'name' => $record['name'],
+                'code' => $record['city_code'],
+            ]
+        );
 
         if ($city->name !== null && $record['name'] !== $city->name) {
             $this->warn("Possible city double: ");
@@ -159,9 +164,7 @@ class FetchLocationsCommand extends Command
             $this->warn("Record {$city->name}, {$city->code}");
         }
 
-        $city->name = $record['name'];
-        $city->code = $record['city_code'];
-        $city->save();
+        $this->cachedCities[$city->code] = $city->id;
 
         return $city;
     }
@@ -171,6 +174,8 @@ class FetchLocationsCommand extends Command
         $chunkNumber = 0;
         $totalProceeded = 0;
 
+        $this->comment('Importing streets...');
+
         $this->ckanFetcher
             ->setCKANServer($this->ckanLocationsServer)
             ->setDataStoreResourceId($this->streetsResourceId);
@@ -178,38 +183,62 @@ class FetchLocationsCommand extends Command
         $this->recordTransformer
             ->setTransformMap($this->transformStreetRecordMap);
 
-        do {
-            $records = $this->ckanFetcher
-                ->fetchRecords([
-                    'limit'     => $this->streetChunkSize,
-                    'offset'    => $chunkNumber * $this->streetChunkSize,
-                    'sort'      => $this->streetCityCodeField, //by city code
-                ]);
+        try {
+            do {
+                $records = $this->ckanFetcher
+                    ->fetchRecords(
+                        [
+                            'limit' => $this->streetChunkSize,
+                            'offset' => $chunkNumber * $this->streetChunkSize,
+                            'sort' => $this->streetCityCodeField, //by city code
+                        ]
+                    );
 
-            $retrievedStreetsCount = count($records);
+                $retrievedStreetsCount = count($records);
 
-            foreach ($records as $record) {
-                $this->importStreet($record);
-            }
+                foreach ($records as $record) {
+                    $this->importStreet($record);
+                }
 
-            $chunkNumber++;
-            $totalProceeded += $retrievedStreetsCount;
+                $chunkNumber++;
+                $totalProceeded += $retrievedStreetsCount;
 
-            echo ($totalProceeded)." streets processed\n";
+                echo ($totalProceeded) . " streets processed\n";
+            } while ($retrievedStreetsCount >= $this->streetChunkSize);
+        } catch (Exception $exception) {
+            DB::rollBack();
+            $this->comment("Error occurred. All processed streets will be reverted!");
+            $this->error($exception->getMessage());
+        }
 
-        } while ($retrievedStreetsCount >= $this->streetChunkSize);
+        DB::commit();
     }
 
     private function importStreet(array $record)
     {
         $record = $this->recordTransformer->transform($record);
 
-        $street = $this->streetsEntity::query()
-            ->where('code', $record['street_code'])
-            ->where('city_code', $record['city_code'])
-            ->firstOrNew();
+        $city_id = $this->getCityIdByCode($record['city_code']);
 
-        $city = $this->fetchCityFromLocalDB($record['city_code']);
+        if (!$city_id) {
+            $this->warn("Street not imported: City code not exists!");
+            $this->warn("[{$record['name']}, City: {$record['city_code']}, Street: {$record['street_code']}]");
+            return;
+        }
+
+        $street = $this->streetsEntity::query()
+            ->updateOrCreate(
+                [
+                    'code' => $record['street_code'],
+                    'city_code' => $record['city_code'],
+                ],
+                [
+                    'code' => $record['street_code'],
+                    'city_code' => $record['city_code'],
+                    'name' => $record['name'],
+                    'city_id' => $city_id,
+                ]
+            );
 
         if ($street->name !== null && $street->name !== $record['name']) {
             $this->warn("Possible street double:");
@@ -217,23 +246,20 @@ class FetchLocationsCommand extends Command
             $this->warn("DB Model {$street->name}, City: {$street->city_code}, Street: {$street->code}");
         }
 
-        $street->name = $record['name'];
-        $street->code = $record['street_code'];
-        $street->city_code = $record['city_code'];
-        $street->city_id = $city->id;
-        $street->save();
-
         return $street;
     }
 
-    private function fetchCityFromLocalDB(int $cityCode)
+    private function getCityIdByCode(int $cityCode): ?string
     {
-        if (null === $this->cachedCity || $this->cachedCity->code !== $cityCode) {
-            $this->cachedCity = $this->citiesEntity::query()->where([
-                'code' => $cityCode,
-            ])->firstOrFail();
+        if (isset($this->cachedCities[$cityCode])) {
+            return $this->cachedCities[$cityCode];
         }
 
-        return $this->cachedCity;
+        if ($city = $this->citiesEntity::query()->where('code', $cityCode)->first(['id'])) {
+            $this->cachedCities[$cityCode] = $city->id;
+            return $city->id;
+        }
+
+        return null;
     }
 }
