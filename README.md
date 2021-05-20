@@ -8,13 +8,14 @@ Access to the database is organized using CKAN-API standard. CKAN docs you can f
 _Installation_
 
 1. You must add this repository as a source of packages in composer.json file.
-   `{
+   ```json
+   {
    "type": "vcs",
    "url": "https://github.com/Isreal-IT/il-location-fetcher"
    }
-   `
+   ```
 2. Install the package using composer
-    `composer install israel-it/il-location-fetcher`
+    `composer require israel-it/il-location-fetcher`
 
 3. Run following command:
     `php artisan il_locations:install`
